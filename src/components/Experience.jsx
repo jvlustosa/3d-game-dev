@@ -6,6 +6,7 @@ import { useSnapshot } from "valtio";
 import { GameState } from "../App";
 import { CharacterController } from "./CharacterController";
 import { Map } from "./Map";
+import { BombProjectile } from "./BombProjectile";
 
 export const maps = {
   castle_on_hills: {
@@ -42,7 +43,10 @@ export const Experience = () => {
     },
   });
 
-  const { map } = useSnapshot(GameState);
+  const { map, activeProjectiles } = useSnapshot(GameState);
+  
+  // Debug logging
+  console.log("Experience render - activeProjectiles:", activeProjectiles);
 
   return (
     <>
@@ -72,6 +76,19 @@ export const Experience = () => {
           model={`models/${map}.glb`}
         />
         <CharacterController />
+        {activeProjectiles.map((projectile) => (
+          <BombProjectile
+            key={projectile.id}
+            position={projectile.position}
+            direction={projectile.direction}
+            onExplode={() => {
+              // Remove projectile from active list
+              GameState.activeProjectiles = GameState.activeProjectiles.filter(
+                p => p.id !== projectile.id
+              );
+            }}
+          />
+        ))}
       </Physics>
     </>
   );

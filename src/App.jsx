@@ -4,11 +4,16 @@ import { Vector3 } from "three";
 import { proxy } from "valtio";
 import { Experience } from "./components/Experience";
 import { Minimap } from "./components/Minimap";
+import { AmmoUI } from "./components/ui/AmmoUI";
 
 export const GameState = proxy({
   map: "castle_on_hills",
   characterPosition: new Vector3(0, 0, 0),
   containerRotation: 0,
+  ammo: 10,
+  canShoot: true,
+  shootCooldown: 0,
+  activeProjectiles: [],
 });
 
 const keyboardMap = [
@@ -57,6 +62,11 @@ function App() {
       >
         <Minimap />
       </View>
+      <AmmoUI 
+        ammo={GameState.ammo} 
+        canShoot={GameState.canShoot} 
+        shootCooldown={GameState.shootCooldown} 
+      />
     </KeyboardControls>
   );
 }

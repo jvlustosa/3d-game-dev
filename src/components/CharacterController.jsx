@@ -7,6 +7,8 @@ import { MathUtils, Vector3 } from "three";
 import { degToRad } from "three/src/math/MathUtils.js";
 import { GameState } from "../App";
 import { Character } from "./Character";
+import { Bazooka } from "./Bazooka";
+import { BombProjectile } from "./BombProjectile";
 
 const normalizeAngle = (angle) => {
   while (angle > Math.PI) angle -= 2 * Math.PI;
@@ -52,6 +54,8 @@ export const CharacterController = () => {
   const [animation, setAnimation] = useState("idle");
   const [isGrounded, setIsGrounded] = useState(true);
   const [isJumping, setIsJumping] = useState(false);
+  const [isShooting, setIsShooting] = useState(false);
+  // Remove local state, use GameState instead
 
   const characterRotationTarget = useRef(0);
   const rotationTarget = useRef(0);
@@ -65,10 +69,89 @@ export const CharacterController = () => {
   const isClicking = useRef(false);
   const isRightClicking = useRef(false);
   const mousePosition = useRef({ x: 0, y: 0 });
+  const lastShootTime = useRef(0);
 
   useEffect(() => {
     const onMouseDown = (e) => {
       if (e.button === 0) { // Left click
+        console.log("Left mouse click detected!");
+        // Handle shooting first
+        const currentTime = Date.now();
+        console.log("Shooting check:", {
+          ammo: GameState.ammo,
+          canShoot: GameState.canShoot,
+          timeSinceLastShot: currentTime - lastShootTime.current
+        });
+        if (GameState.ammo > 0 && GameState.canShoot && currentTime - lastShootTime.current > 300 && GameState.activeProjectiles.length < 5) {
+          GameState.ammo -= 1;
+          GameState.canShoot = false;
+          GameState.shootCooldown = 0.3;
+          lastShootTime.current = currentTime;
+          setIsShooting(true);
+          
+          // Create projectile from character-relative bazooka position
+          const characterWorldPos = character.current.getWorldPosition(new Vector3());
+          // Bazooka offset relative to character (same as bazooka position in the component)
+          const bazookaOffset = new Vector3(0.15, 0.1, 0.2);
+          
+          // Calculate bazooka world position relative to character
+          const bazookaWorldPos = new Vector3();
+          bazookaWorldPos.copy(characterWorldPos).add(bazookaOffset);
+          
+          // Calculate shoot direction based on character's front direction
+          // Use character's rotation to determine front direction
+          const characterFrontDirection = new Vector3(0, 0, 1); // Character's front is along positive Z axis
+          characterFrontDirection.applyAxisAngle(new Vector3(0, 1, 0), characterRotationTarget.current + cameraRotationTarget.current);
+          
+          // Create shoot direction with upward angle
+          const shootDirection = new Vector3(
+            characterFrontDirection.x,
+            0.15, // Upward angle for arc trajectory
+            characterFrontDirection.z
+          );
+          
+          console.log("Character front direction:", characterFrontDirection);
+          console.log("Shoot direction:", shootDirection);
+          
+          const projectileId = Date.now();
+          const newProjectile = {
+            id: projectileId,
+            position: [bazookaWorldPos.x, bazookaWorldPos.y, bazookaWorldPos.z],
+            direction: [shootDirection.x, shootDirection.y, shootDirection.z]
+          };
+          
+          GameState.activeProjectiles.push(newProjectile);
+          
+          console.log("Bazooka fired! Ammo remaining:", GameState.ammo);
+          console.log("Projectile created:", newProjectile);
+          console.log("Total projectiles:", GameState.activeProjectiles.length);
+          
+          // Add shooting sound effect (optional)
+          try {
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(200, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(50, audioContext.currentTime + 0.1);
+            
+            gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.1);
+          } catch (e) {
+            // Audio not supported or blocked
+          }
+          
+          // Reset shooting animation after 300ms
+          setTimeout(() => setIsShooting(false), 300);
+        }
+        
+        // Then handle movement
         isClicking.current = true;
       } else if (e.button === 2) { // Right click
         isRightClicking.current = true;
@@ -116,6 +199,14 @@ export const CharacterController = () => {
   }, []);
 
   useFrame(({ camera, mouse }) => {
+    // Update shoot cooldown
+    if (GameState.shootCooldown > 0) {
+      GameState.shootCooldown = Math.max(0, GameState.shootCooldown - 0.016); // 60fps = 0.016s per frame
+      if (GameState.shootCooldown <= 0.016) {
+        GameState.canShoot = true;
+      }
+    }
+
     if (rb.current) {
       const vel = rb.current.linvel();
 
@@ -181,15 +272,20 @@ export const CharacterController = () => {
         // Apply movement in world space
         vel.x = Math.sin(worldAngle) * speed;
         vel.z = Math.cos(worldAngle) * speed;
-        if (!isJumping) {
+        if (!isJumping && !isShooting) {
           if (speed === RUN_SPEED) {
             setAnimation("run");
           } else {
             setAnimation("walk");
           }
         }
-      } else if (!isJumping) {
+      } else if (!isJumping && !isShooting) {
         setAnimation("idle");
+      }
+      
+      // Override animation for shooting
+      if (isShooting) {
+        setAnimation("jump"); // Use jump animation for shooting effect
       }
       character.current.rotation.y = lerpAngle(
         character.current.rotation.y,
@@ -229,6 +325,12 @@ export const CharacterController = () => {
         <group ref={cameraPosition} position-y={4} position-z={-4} />
         <group ref={character}>
           <Character scale={0.18} position-y={-0.25} animation={animation} />
+          <Bazooka 
+            scale={0.3} 
+            position={[0.15, 0.1, 0.2]} 
+            rotation={[0, Math.PI / 2, 0]}
+            isShooting={isShooting}
+          />
         </group>
       </group>
       <CapsuleCollider args={[0.08, 0.15]} />
