@@ -70,6 +70,7 @@ export const CharacterController = () => {
   const isRightClicking = useRef(false);
   const mousePosition = useRef({ x: 0, y: 0 });
   const lastShootTime = useRef(0);
+  const explosionForceRef = useRef(new Vector3(0, 0, 0));
 
   useEffect(() => {
     const onMouseDown = (e) => {
@@ -204,6 +205,65 @@ export const CharacterController = () => {
       GameState.shootCooldown = Math.max(0, GameState.shootCooldown - 0.016); // 60fps = 0.016s per frame
       if (GameState.shootCooldown <= 0.016) {
         GameState.canShoot = true;
+      }
+    }
+
+    // Handle explosion forces - only check every 3 frames to reduce performance impact
+    if (rb.current && GameState.explosions.length > 0 && Math.floor(Date.now() / 16) % 3 === 0) {
+      const characterPos = rb.current.translation();
+      let totalForceX = 0, totalForceY = 0, totalForceZ = 0;
+      
+      // Process explosions in reverse order to safely remove old ones
+      for (let i = GameState.explosions.length - 1; i >= 0; i--) {
+        const explosion = GameState.explosions[i];
+        
+        // Remove old explosions first
+        if (explosion.time < Date.now() - 2000) {
+          GameState.explosions.splice(i, 1);
+          continue;
+        }
+        
+        // Simplified distance calculation
+        const dx = characterPos.x - explosion.position[0];
+        const dy = characterPos.y - explosion.position[1];
+        const dz = characterPos.z - explosion.position[2];
+        const distanceSquared = dx * dx + dy * dy + dz * dz;
+        const maxRadius = explosion.radius || 15;
+        const maxRadiusSquared = maxRadius * maxRadius;
+        
+        if (distanceSquared < maxRadiusSquared) {
+          const distance = Math.sqrt(distanceSquared);
+          const forceStrength = explosion.strength || 20;
+          const distanceFactor = 1 - (distance / maxRadius);
+          const force = forceStrength * distanceFactor * distanceFactor;
+          
+          // Simplified direction calculation
+          const invDistance = 1 / distance;
+          const dirX = dx * invDistance;
+          const dirY = dy * invDistance + 0.3; // Add upward bias
+          const dirZ = dz * invDistance;
+          
+          // Normalize the direction
+          const dirLength = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
+          const invDirLength = 1 / dirLength;
+          
+          totalForceX += dirX * invDirLength * force;
+          totalForceY += dirY * invDirLength * force;
+          totalForceZ += dirZ * invDirLength * force;
+        }
+      }
+      
+      // Apply explosion force to character
+      if (Math.abs(totalForceX) > 0.1 || Math.abs(totalForceY) > 0.1 || Math.abs(totalForceZ) > 0.1) {
+        const currentVel = rb.current.linvel();
+        rb.current.setLinvel(
+          new Vector3(
+            currentVel.x + totalForceX * 0.016,
+            currentVel.y + totalForceY * 0.016,
+            currentVel.z + totalForceZ * 0.016
+          ),
+          true
+        );
       }
     }
 

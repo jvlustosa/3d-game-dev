@@ -81,6 +81,7 @@ export const Experience = () => {
             key={projectile.id}
             position={projectile.position}
             direction={projectile.direction}
+            explosionIntensity={GameState.explosionIntensity}
             onExplode={() => {
               // Remove projectile from active list
               GameState.activeProjectiles = GameState.activeProjectiles.filter(

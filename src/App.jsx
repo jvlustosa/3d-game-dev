@@ -5,6 +5,7 @@ import { proxy } from "valtio";
 import { Experience } from "./components/Experience";
 import { Minimap } from "./components/Minimap";
 import { AmmoUI } from "./components/ui/AmmoUI";
+import { ExplosionIntensityController } from "./components/ui/ExplosionIntensityController";
 
 export const GameState = proxy({
   map: "castle_on_hills",
@@ -14,6 +15,8 @@ export const GameState = proxy({
   canShoot: true,
   shootCooldown: 0,
   activeProjectiles: [],
+  explosions: [], // Track active explosions for force calculation
+  explosionIntensity: 1.0, // Control explosion power
 });
 
 const keyboardMap = [
@@ -62,11 +65,8 @@ function App() {
       >
         <Minimap />
       </View>
-      <AmmoUI 
-        ammo={GameState.ammo} 
-        canShoot={GameState.canShoot} 
-        shootCooldown={GameState.shootCooldown} 
-      />
+      <AmmoUI />
+      <ExplosionIntensityController />
     </KeyboardControls>
   );
 }
