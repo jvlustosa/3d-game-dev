@@ -167,18 +167,20 @@ export const CharacterController = () => {
         movement.x = -1;
       }
 
-      if (movement.x !== 0) {
-        rotationTarget.current += ROTATION_SPEED * movement.x;
-      }
-
+      // Calculate movement direction relative to camera rotation
       if (movement.x !== 0 || movement.z !== 0) {
-        characterRotationTarget.current = Math.atan2(movement.x, movement.z);
-        vel.x =
-          Math.sin(rotationTarget.current + characterRotationTarget.current) *
-          speed;
-        vel.z =
-          Math.cos(rotationTarget.current + characterRotationTarget.current) *
-          speed;
+        // Calculate the target rotation based on input direction
+        const inputAngle = Math.atan2(movement.x, movement.z);
+        
+        // Apply camera rotation to get world-space direction
+        const worldAngle = inputAngle + rotationTarget.current + cameraRotationTarget.current;
+        
+        // Set character rotation target (visual rotation)
+        characterRotationTarget.current = inputAngle;
+        
+        // Apply movement in world space
+        vel.x = Math.sin(worldAngle) * speed;
+        vel.z = Math.cos(worldAngle) * speed;
         if (!isJumping) {
           if (speed === RUN_SPEED) {
             setAnimation("run");
