@@ -17,6 +17,7 @@ const keyboardMap = [
   { name: "left", keys: ["ArrowLeft", "KeyA"] },
   { name: "right", keys: ["ArrowRight", "KeyD"] },
   { name: "run", keys: ["Shift"] },
+  { name: "jump", keys: ["Space"] },
 ];
 
 function App() {
@@ -47,8 +48,8 @@ function App() {
       <View
         style={{
           position: "fixed",
-          width: "320px",
-          height: "320px",
+          width: "200px",
+          height: "200px",
           top: 16,
           left: 16,
           boxShadow: "0 0 10px rgba(0,0,0,0.5)",

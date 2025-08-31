@@ -30,7 +30,7 @@ const lerpAngle = (start, end, t) => {
 };
 
 export const CharacterController = () => {
-  const { WALK_SPEED, RUN_SPEED, ROTATION_SPEED } = useControls(
+  const { WALK_SPEED, RUN_SPEED, ROTATION_SPEED, JUMP_FORCE, CAMERA_ROTATION_SPEED } = useControls(
     "Character Control",
     {
       WALK_SPEED: { value: 0.8, min: 0.1, max: 4, step: 0.1 },
@@ -41,6 +41,8 @@ export const CharacterController = () => {
         max: degToRad(5),
         step: degToRad(0.1),
       },
+      JUMP_FORCE: { value: 8, min: 1, max: 20, step: 0.5 },
+      CAMERA_ROTATION_SPEED: { value: 0.005, min: 0.001, max: 0.02, step: 0.001 },
     }
   );
   const rb = useRef();
@@ -48,9 +50,12 @@ export const CharacterController = () => {
   const character = useRef();
 
   const [animation, setAnimation] = useState("idle");
+  const [isGrounded, setIsGrounded] = useState(true);
+  const [isJumping, setIsJumping] = useState(false);
 
   const characterRotationTarget = useRef(0);
   const rotationTarget = useRef(0);
+  const cameraRotationTarget = useRef(0);
   const cameraTarget = useRef();
   const cameraPosition = useRef();
   const cameraWorldPosition = useRef(new Vector3());
@@ -58,22 +63,53 @@ export const CharacterController = () => {
   const cameraLookAt = useRef(new Vector3());
   const [, get] = useKeyboardControls();
   const isClicking = useRef(false);
+  const isRightClicking = useRef(false);
+  const mousePosition = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
     const onMouseDown = (e) => {
-      isClicking.current = true;
+      if (e.button === 0) { // Left click
+        isClicking.current = true;
+      } else if (e.button === 2) { // Right click
+        isRightClicking.current = true;
+        mousePosition.current = { x: e.clientX, y: e.clientY };
+      }
     };
     const onMouseUp = (e) => {
-      isClicking.current = false;
+      if (e.button === 0) { // Left click
+        isClicking.current = false;
+      } else if (e.button === 2) { // Right click
+        isRightClicking.current = false;
+      }
     };
+    const onMouseMove = (e) => {
+      if (isRightClicking.current) {
+        const deltaX = e.clientX - mousePosition.current.x;
+        cameraRotationTarget.current += deltaX * CAMERA_ROTATION_SPEED;
+        console.log("Camera rotation:", cameraRotationTarget.current, "Delta:", deltaX);
+        mousePosition.current = { x: e.clientX, y: e.clientY };
+      }
+    };
+    
+    // Prevent context menu on right click
+    const onContextMenu = (e) => {
+      e.preventDefault();
+    };
+    
     document.addEventListener("mousedown", onMouseDown);
     document.addEventListener("mouseup", onMouseUp);
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("contextmenu", onContextMenu);
+    
     // touch
     document.addEventListener("touchstart", onMouseDown);
     document.addEventListener("touchend", onMouseUp);
+    
     return () => {
       document.removeEventListener("mousedown", onMouseDown);
       document.removeEventListener("mouseup", onMouseUp);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("contextmenu", onContextMenu);
       document.removeEventListener("touchstart", onMouseDown);
       document.removeEventListener("touchend", onMouseUp);
     };
@@ -82,6 +118,22 @@ export const CharacterController = () => {
   useFrame(({ camera, mouse }) => {
     if (rb.current) {
       const vel = rb.current.linvel();
+
+      // Check if grounded (simple Y velocity check)
+      const isCurrentlyGrounded = vel.y < 0.1 && vel.y > -0.1;
+      setIsGrounded(isCurrentlyGrounded);
+      
+      // Handle jump
+      if (get().jump && isCurrentlyGrounded && !isJumping) {
+        vel.y = JUMP_FORCE;
+        setIsJumping(true);
+        setAnimation("jump");
+      }
+      
+      // Reset jumping state when landing
+      if (isCurrentlyGrounded && isJumping) {
+        setIsJumping(false);
+      }
 
       const movement = {
         x: 0,
@@ -97,7 +149,7 @@ export const CharacterController = () => {
 
       let speed = get().run ? RUN_SPEED : WALK_SPEED;
 
-      if (isClicking.current) {
+      if (isClicking.current && (Math.abs(mouse.x) > 0.1 || Math.abs(mouse.y) > 0.1)) {
         console.log("clicking", mouse.x, mouse.y);
         if (Math.abs(mouse.x) > 0.1) {
           movement.x = -mouse.x;
@@ -127,12 +179,14 @@ export const CharacterController = () => {
         vel.z =
           Math.cos(rotationTarget.current + characterRotationTarget.current) *
           speed;
-        if (speed === RUN_SPEED) {
-          setAnimation("run");
-        } else {
-          setAnimation("walk");
+        if (!isJumping) {
+          if (speed === RUN_SPEED) {
+            setAnimation("run");
+          } else {
+            setAnimation("walk");
+          }
         }
-      } else {
+      } else if (!isJumping) {
         setAnimation("idle");
       }
       character.current.rotation.y = lerpAngle(
@@ -149,7 +203,7 @@ export const CharacterController = () => {
     // CAMERA
     container.current.rotation.y = MathUtils.lerp(
       container.current.rotation.y,
-      rotationTarget.current,
+      rotationTarget.current + cameraRotationTarget.current,
       0.1
     );
 

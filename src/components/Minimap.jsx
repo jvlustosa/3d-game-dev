@@ -2,7 +2,6 @@ import {
   Environment,
   Gltf,
   PerspectiveCamera,
-  useTexture,
 } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useControls } from "leva";
@@ -52,8 +51,6 @@ export const Minimap = () => {
     }
   });
 
-  const profileTexture = useTexture("textures/wawa.jpg");
-
   return (
     <>
       <color attach={"background"} args={["#ececec"]} />
@@ -61,15 +58,18 @@ export const Minimap = () => {
       <Environment preset="sunset" />
       <PerspectiveCamera makeDefault position={[0, 0, 5]} />
       <group ref={character}>
+        {/* Arrow icon for character position */}
         <mesh renderOrder={1} rotation-x={-Math.PI / 2}>
-          <circleGeometry args={[0.6, 32]} />
-          <meshBasicMaterial
-            color="#ffffff"
-            depthTest={false}
-            map={profileTexture}
-          />
+          <ringGeometry args={[0.3, 0.5, 32]} />
+          <meshBasicMaterial color="#ffffff" depthTest={false} />
         </mesh>
-        <mesh position-y={-0.01} rotation-x={-Math.PI / 2}>
+        {/* Arrow pointer */}
+        <mesh renderOrder={2} rotation-x={-Math.PI / 2} position-z={0.01}>
+          <coneGeometry args={[0.2, 0.4, 32]} />
+          <meshBasicMaterial color="#ff0000" depthTest={false} />
+        </mesh>
+        {/* Background circle */}
+        <mesh position-y={-0.02} rotation-x={-Math.PI / 2}>
           <circleGeometry args={[0.65, 32]} />
           <meshBasicMaterial color="red" depthTest={false} />
         </mesh>
