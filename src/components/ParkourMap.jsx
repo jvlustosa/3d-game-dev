@@ -19,8 +19,10 @@ export const ParkourMap = () => {
   ];
 
   const handleKeyCollect = (keyId) => {
-    GameState.collectedKeys.add(keyId);
-    console.log(`Chave ${keyId} coletada! Total: ${GameState.collectedKeys.size}/3`);
+    if (!GameState.collectedKeys.includes(keyId)) {
+      GameState.collectedKeys.push(keyId);
+      console.log(`Chave ${keyId} coletada! Total: ${GameState.collectedKeys.length}/3`);
+    }
   };
 
   // Configuração dos prédios
@@ -144,14 +146,16 @@ export const ParkourMap = () => {
       <StartPortal />
 
       {/* Chaves coletáveis */}
-      {keyPositions.map((key) => (
-        <CollectibleKey
-          key={key.id}
-          keyId={key.id}
-          position={key.position}
-          onCollect={handleKeyCollect}
-        />
-      ))}
+      {keyPositions
+        .filter(key => !collectedKeys.includes(key.id))
+        .map((key) => (
+          <CollectibleKey
+            key={key.id}
+            keyId={key.id}
+            position={key.position}
+            onCollect={handleKeyCollect}
+          />
+        ))}
     </group>
   );
 };

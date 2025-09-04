@@ -1,7 +1,7 @@
 import { KeyboardControls, View } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { Vector3 } from "three";
-import { proxy } from "valtio";
+import { proxy, useSnapshot } from "valtio";
 import { Experience } from "./components/Experience";
 import { Minimap } from "./components/Minimap";
 import { KeyUI } from "./components/KeyUI";
@@ -10,7 +10,7 @@ export const GameState = proxy({
   map: "parkour_buildings",
   characterPosition: new Vector3(0, 0, 0),
   containerRotation: 0,
-  collectedKeys: new Set(),
+  collectedKeys: [],
 });
 
 const keyboardMap = [
@@ -23,6 +23,8 @@ const keyboardMap = [
 ];
 
 function App() {
+  const gameState = useSnapshot(GameState);
+  
   return (
     <KeyboardControls map={keyboardMap}>
       <Canvas
@@ -60,7 +62,7 @@ function App() {
         <Minimap />
       </View>
       
-      <KeyUI collectedKeys={GameState.collectedKeys} totalKeys={3} />
+      <KeyUI collectedKeys={gameState.collectedKeys} totalKeys={3} />
     </KeyboardControls>
   );
 }

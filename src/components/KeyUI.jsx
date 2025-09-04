@@ -6,8 +6,8 @@ export const KeyUI = ({ collectedKeys, totalKeys = 3 }) => {
   const [notificationText, setNotificationText] = useState("");
 
   useEffect(() => {
-    if (collectedKeys.size > 0) {
-      setNotificationText(`Chave ${collectedKeys.size}/${totalKeys} coletada!`);
+    if (collectedKeys.length > 0) {
+      setNotificationText(`Chave ${collectedKeys.length}/${totalKeys} coletada!`);
       setShowNotification(true);
       
       // Hide notification after 2 seconds
@@ -17,7 +17,7 @@ export const KeyUI = ({ collectedKeys, totalKeys = 3 }) => {
       
       return () => clearTimeout(timer);
     }
-  }, [collectedKeys.size, totalKeys]);
+  }, [collectedKeys.length, totalKeys]);
 
   return (
     <>
@@ -25,8 +25,8 @@ export const KeyUI = ({ collectedKeys, totalKeys = 3 }) => {
       <div
         style={{
           position: "fixed",
-          top: "20px",
-          right: "20px",
+          bottom: "20px",
+          left: "20px",
           background: "rgba(0, 0, 0, 0.7)",
           color: "white",
           padding: "10px 15px",
@@ -40,7 +40,7 @@ export const KeyUI = ({ collectedKeys, totalKeys = 3 }) => {
         }}
       >
         <FaKey color="#FFD700" size={20} />
-        <span>{collectedKeys.size}/{totalKeys}</span>
+        <span>{collectedKeys.length}/{totalKeys}</span>
       </div>
 
       {/* Notification */}

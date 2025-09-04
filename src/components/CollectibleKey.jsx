@@ -10,6 +10,12 @@ export const CollectibleKey = ({ position, onCollect, keyId, ...props }) => {
   const [isCollected, setIsCollected] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   
+  // Check if key is already collected on mount
+  useEffect(() => {
+    // This will be handled by the parent component
+    // The key will not render if already collected
+  }, []);
+  
   // Criar instância do áudio
   const audioRef = useRef(null);
   const shadowRef = useRef(null);
@@ -48,14 +54,14 @@ export const CollectibleKey = ({ position, onCollect, keyId, ...props }) => {
       
       // Animação da sombra pulsante
       if (shadowRef.current && ringRef.current) {
-        const pulse = 1 + Math.sin(time * 2) * 0.2;
-        const opacity = 0.3 + Math.sin(time * 1.5) * 0.1;
+        const pulse = 1 + Math.sin(time * 2) * 0.15;
+        const opacity = 0.2 + Math.sin(time * 1.5) * 0.05;
         
         shadowRef.current.scale.setScalar(pulse);
         shadowRef.current.material.opacity = opacity;
         
         ringRef.current.scale.setScalar(pulse);
-        ringRef.current.material.opacity = 0.6 + Math.sin(time * 1.5) * 0.2;
+        ringRef.current.material.opacity = 0.5 + Math.sin(time * 1.5) * 0.15;
       }
       
       // Sistema de detecção por proximidade (backup)
@@ -172,6 +178,19 @@ export const CollectibleKey = ({ position, onCollect, keyId, ...props }) => {
           </mesh>
         ))}
         
+        {/* Sombra escura realista no chão */}
+        <mesh 
+          position={[0, 0.005, 0]} 
+          rotation-x={-Math.PI / 2}
+        >
+          <circleGeometry args={[0.8, 32]} />
+          <meshStandardMaterial 
+            color="#000000" 
+            transparent 
+            opacity={0.4}
+          />
+        </mesh>
+
         {/* Sombra projetada no chão com efeito brilhante */}
         <mesh 
           ref={shadowRef}
@@ -182,25 +201,38 @@ export const CollectibleKey = ({ position, onCollect, keyId, ...props }) => {
           <meshStandardMaterial 
             color="#FFD700" 
             transparent 
-            opacity={0.3}
+            opacity={0.2}
             emissive="#FFD700"
-            emissiveIntensity={0.4}
+            emissiveIntensity={0.3}
           />
         </mesh>
         
         {/* Anel brilhante da sombra */}
         <mesh 
           ref={ringRef}
-          position={[0, 0.02, 0]} 
+          position={[0, 0.015, 0]} 
           rotation-x={-Math.PI / 2}
         >
           <ringGeometry args={[1.2, 1.8, 32]} />
           <meshStandardMaterial 
             color="#FFD700" 
             transparent 
-            opacity={0.6}
+            opacity={0.5}
             emissive="#FFD700"
-            emissiveIntensity={0.8}
+            emissiveIntensity={0.6}
+          />
+        </mesh>
+        
+        {/* Gradiente da sombra */}
+        <mesh 
+          position={[0, 0.008, 0]} 
+          rotation-x={-Math.PI / 2}
+        >
+          <ringGeometry args={[0.8, 1.2, 32]} />
+          <meshStandardMaterial 
+            color="#333333" 
+            transparent 
+            opacity={0.3}
           />
         </mesh>
       </group>
