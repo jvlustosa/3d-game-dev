@@ -1,11 +1,12 @@
 import { Environment, OrthographicCamera } from "@react-three/drei";
 import { Physics } from "@react-three/rapier";
 import { useControls } from "leva";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useSnapshot } from "valtio";
 import { GameState } from "../App";
 import { CharacterController } from "./CharacterController";
 import { Map } from "./Map";
+import { ParkourMap } from "./ParkourMap";
 
 export const maps = {
   castle_on_hills: {
@@ -28,13 +29,25 @@ export const maps = {
     scale: 0.4,
     position: [-4, 0, -6],
   },
+  parkour_buildings: {
+    scale: 1,
+    position: [0, 0, 0],
+  },
 };
 
 export const Experience = () => {
   const shadowCameraRef = useRef();
+  
+  // Garantir que o mapa padrão seja definido
+  useEffect(() => {
+    if (!GameState.map) {
+      GameState.map = "parkour_buildings";
+    }
+  }, []);
+
   useControls("Map", {
     map: {
-      value: "castle_on_hills",
+      value: "parkour_buildings",
       options: Object.keys(maps),
       onChange: (value) => {
         GameState.map = value;
@@ -43,6 +56,9 @@ export const Experience = () => {
   });
 
   const { map } = useSnapshot(GameState);
+
+  // Debug: verificar qual mapa está sendo renderizado
+  // console.log("Current map:", map);
 
   return (
     <>
@@ -66,11 +82,15 @@ export const Experience = () => {
         />
       </directionalLight>
       <Physics key={map}>
-        <Map
-          scale={maps[map].scale}
-          position={maps[map].position}
-          model={`models/${map}.glb`}
-        />
+        {map === "parkour_buildings" ? (
+          <ParkourMap />
+        ) : (
+          <Map
+            scale={maps[map].scale}
+            position={maps[map].position}
+            model={`models/${map}.glb`}
+          />
+        )}
         <CharacterController />
       </Physics>
     </>

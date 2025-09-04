@@ -4,7 +4,7 @@ import { CapsuleCollider, RigidBody } from "@react-three/rapier";
 import { useControls } from "leva";
 import { useEffect, useRef, useState } from "react";
 import { MathUtils, Vector3 } from "three";
-import { degToRad } from "three/src/math/MathUtils.js";
+import { useSnapshot } from "valtio";
 import { GameState } from "../App";
 import { Character } from "./Character";
 
@@ -30,16 +30,17 @@ const lerpAngle = (start, end, t) => {
 };
 
 export const CharacterController = () => {
+  const { map } = useSnapshot(GameState);
   const { WALK_SPEED, RUN_SPEED, ROTATION_SPEED, JUMP_FORCE, CAMERA_ROTATION_SPEED } = useControls(
     "Character Control",
     {
       WALK_SPEED: { value: 0.8, min: 0.1, max: 4, step: 0.1 },
       RUN_SPEED: { value: 1.6, min: 0.2, max: 12, step: 0.1 },
       ROTATION_SPEED: {
-        value: degToRad(0.5),
-        min: degToRad(0.1),
-        max: degToRad(5),
-        step: degToRad(0.1),
+        value: MathUtils.degToRad(0.5),
+        min: MathUtils.degToRad(0.1),
+        max: MathUtils.degToRad(5),
+        step: MathUtils.degToRad(0.1),
       },
       JUMP_FORCE: { value: 8, min: 1, max: 20, step: 0.5 },
       CAMERA_ROTATION_SPEED: { value: 0.005, min: 0.001, max: 0.02, step: 0.001 },
@@ -52,6 +53,9 @@ export const CharacterController = () => {
   const [animation, setAnimation] = useState("idle");
   const [isGrounded, setIsGrounded] = useState(true);
   const [isJumping, setIsJumping] = useState(false);
+  const [jumpCount, setJumpCount] = useState(0);
+  const [hasFallen, setHasFallen] = useState(false);
+  const [lastJumpTime, setLastJumpTime] = useState(0);
 
   const characterRotationTarget = useRef(0);
   const rotationTarget = useRef(0);
@@ -86,7 +90,7 @@ export const CharacterController = () => {
       if (isRightClicking.current) {
         const deltaX = e.clientX - mousePosition.current.x;
         cameraRotationTarget.current += deltaX * CAMERA_ROTATION_SPEED;
-        console.log("Camera rotation:", cameraRotationTarget.current, "Delta:", deltaX);
+        // console.log("Camera rotation:", cameraRotationTarget.current, "Delta:", deltaX);
         mousePosition.current = { x: e.clientX, y: e.clientY };
       }
     };
@@ -113,7 +117,7 @@ export const CharacterController = () => {
       document.removeEventListener("touchstart", onMouseDown);
       document.removeEventListener("touchend", onMouseUp);
     };
-  }, []);
+  }, [CAMERA_ROTATION_SPEED]);
 
   useFrame(({ camera, mouse }) => {
     if (rb.current) {
@@ -123,16 +127,36 @@ export const CharacterController = () => {
       const isCurrentlyGrounded = vel.y < 0.1 && vel.y > -0.1;
       setIsGrounded(isCurrentlyGrounded);
       
-      // Handle jump
-      if (get().jump && isCurrentlyGrounded && !isJumping) {
-        vel.y = JUMP_FORCE;
-        setIsJumping(true);
-        setAnimation("jump");
+      // Check if fallen (below ground level)
+      if (rb.current.translation().y < -2) {
+        setHasFallen(true);
+      }
+      
+      // Handle jump with double jump
+      const currentTime = Date.now();
+      if (get().jump && (currentTime - lastJumpTime) > 200) { // 200ms debounce
+        if (isCurrentlyGrounded) {
+          // First jump from ground
+          console.log("First jump executed!");
+          vel.y = JUMP_FORCE;
+          setIsJumping(true);
+          setJumpCount(1);
+          setAnimation("jump");
+          setLastJumpTime(currentTime);
+        } else if (!isCurrentlyGrounded && jumpCount === 1) {
+          // Double jump in air
+          console.log("Double jump executed!");
+          vel.y = JUMP_FORCE * 0.9; // Strong second jump
+          setJumpCount(2);
+          setAnimation("jump");
+          setLastJumpTime(currentTime);
+        }
       }
       
       // Reset jumping state when landing
       if (isCurrentlyGrounded && isJumping) {
         setIsJumping(false);
+        setJumpCount(0);
       }
 
       const movement = {
@@ -150,7 +174,7 @@ export const CharacterController = () => {
       let speed = get().run ? RUN_SPEED : WALK_SPEED;
 
       if (isClicking.current && (Math.abs(mouse.x) > 0.1 || Math.abs(mouse.y) > 0.1)) {
-        console.log("clicking", mouse.x, mouse.y);
+        // console.log("clicking", mouse.x, mouse.y);
         if (Math.abs(mouse.x) > 0.1) {
           movement.x = -mouse.x;
         }
@@ -222,13 +246,63 @@ export const CharacterController = () => {
     }
   });
 
+  // Posição inicial baseada no mapa
+  const getInitialPosition = () => {
+    if (map === "parkour_buildings") {
+      return [0, 4, 0]; // Começar no topo do primeiro prédio
+    }
+    return [0, 0, 0]; // Posição padrão
+  };
+
+  // Reset position when fallen
+  useEffect(() => {
+    if (hasFallen && rb.current) {
+      const initialPos = getInitialPosition();
+      rb.current.setTranslation({ x: initialPos[0], y: initialPos[1], z: initialPos[2] }, true);
+      rb.current.setLinvel({ x: 0, y: 0, z: 0 }, true);
+      setHasFallen(false);
+      setJumpCount(0);
+      setIsJumping(false);
+    }
+  }, [hasFallen, map]);
+
   return (
-    <RigidBody colliders={false} lockRotations ref={rb}>
+    <RigidBody 
+      colliders={false} 
+      lockRotations 
+      ref={rb}
+      position={getInitialPosition()}
+      userData={{ isPlayer: true }}
+      onCollisionEnter={(event) => {
+        console.log("Player collision with:", event.other.rigidBodyObject?.userData);
+      }}
+    >
       <group ref={container}>
         <group ref={cameraTarget} position-z={1.5} />
-        <group ref={cameraPosition} position-y={4} position-z={-4} />
+        <group ref={cameraPosition} position-y={map === "parkour_buildings" ? 6 : 4} position-z={map === "parkour_buildings" ? -6 : -4} />
         <group ref={character}>
           <Character scale={0.18} position-y={-0.25} animation={animation} />
+          {/* Double jump indicator - only rings, no sphere */}
+          {jumpCount === 1 && !isGrounded && (
+            <group position={[0, 1.2, 0]}>
+              <mesh>
+                <ringGeometry args={[0.18, 0.22, 16]} />
+                <meshStandardMaterial 
+                  color="#FFFFFF" 
+                  emissive="#FFFFFF" 
+                  emissiveIntensity={0.8} 
+                />
+              </mesh>
+              <mesh>
+                <ringGeometry args={[0.25, 0.28, 16]} />
+                <meshStandardMaterial 
+                  color="#FFFFFF" 
+                  emissive="#FFFFFF" 
+                  emissiveIntensity={0.4} 
+                />
+              </mesh>
+            </group>
+          )}
         </group>
       </group>
       <CapsuleCollider args={[0.08, 0.15]} />

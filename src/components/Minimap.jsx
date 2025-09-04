@@ -53,7 +53,7 @@ export const Minimap = () => {
 
   return (
     <>
-      <color attach={"background"} args={["#ececec"]} />
+      <color attach={"background"} args={["#87CEEB"]} />
       <ambientLight intensity={3} />
       <Environment preset="sunset" />
       <PerspectiveCamera makeDefault position={[0, 0, 5]} />
@@ -74,11 +74,13 @@ export const Minimap = () => {
           <meshBasicMaterial color="red" depthTest={false} />
         </mesh>
       </group>
-      <Gltf
-        scale={maps[map].scale}
-        position={maps[map].position}
-        src={`models/${map}.glb`}
-      />
+      {map !== "parkour_buildings" && (
+        <Gltf
+          scale={maps[map].scale}
+          position={maps[map].position}
+          src={`models/${map}.glb`}
+        />
+      )}
     </>
   );
 };

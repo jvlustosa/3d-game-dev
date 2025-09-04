@@ -4,11 +4,13 @@ import { Vector3 } from "three";
 import { proxy } from "valtio";
 import { Experience } from "./components/Experience";
 import { Minimap } from "./components/Minimap";
+import { KeyUI } from "./components/KeyUI";
 
 export const GameState = proxy({
-  map: "castle_on_hills",
+  map: "parkour_buildings",
   characterPosition: new Vector3(0, 0, 0),
   containerRotation: 0,
+  collectedKeys: new Set(),
 });
 
 const keyboardMap = [
@@ -25,7 +27,7 @@ function App() {
     <KeyboardControls map={keyboardMap}>
       <Canvas
         shadows
-        camera={{ position: [3, 3, 3], near: 0.1, fov: 40 }}
+        camera={{ position: [5, 8, 5], near: 0.1, fov: 40 }}
         style={{
           touchAction: "none",
         }}
@@ -42,7 +44,7 @@ function App() {
           left: 0,
         }}
       >
-        <color attach="background" args={["#ececec"]} />
+        <color attach="background" args={["#87CEEB"]} />
         <Experience />
       </View>
       <View
@@ -57,6 +59,8 @@ function App() {
       >
         <Minimap />
       </View>
+      
+      <KeyUI collectedKeys={GameState.collectedKeys} totalKeys={3} />
     </KeyboardControls>
   );
 }
